@@ -31,6 +31,7 @@ package pkcs11
 #endif
 
 #include "../third_party/pkcs11/pkcs11.h"
+*/
 
 // Go can't call a C function pointer directly, so these are wrappers that
 // perform the dereference in C.
@@ -232,6 +233,25 @@ CK_RV ck_sign(
 ) {
 	return (*fl->C_Sign)(hSession, pData, ulDataLen, pSignature, pulSignatureLen);
 }
+
+CK_RV ck_encrypt_init(
+  CK_SESSION_HANDLE hSession,  
+  CK_MECHANISM_PTR  pMechanism,
+  CK_OBJECT_HANDLE  hKey      
+) {
+	return (*fl->C_EncryptInit)(hSession, pMechanism, hKey);
+}
+
+CK_RV ck_encrypt(
+  CK_SESSION_HANDLE hSession,
+  CK_BYTE_PTR       pData,  
+  CK_ULONG          ulDataLen,
+  CK_BYTE_PTR       pEncryptedData,
+  CK_ULONG_PTR      pulEncryptedDataLen
+) {
+	return (*fl->C_Encrypt)(hSession, pData,  ulDataLen, pEncryptedData, pulEncryptedDataLen);
+}
+   
 */
 // #cgo linux LDFLAGS: -ldl
 import "C"
@@ -1218,7 +1238,7 @@ func (r *rsaPrivateKey) Public() crypto.PublicKey {
 	return r.pub
 }
 
-func (r *rsaPrivateKey) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+func (r *rsaPrivateKey) Encrypt(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	if o, ok := opts.(*rsa.PSSOptions); ok {
 		return r.signPSS(digest, o)
 	}
@@ -1245,11 +1265,11 @@ func (r *rsaPrivateKey) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts)
 	cSigLen := C.CK_ULONG(len(cSig))
 
 	m := C.CK_MECHANISM{C.CKM_RSA_PKCS, nil, 0}
-	rv := C.ck_sign_init(r.o.fl, r.o.h, &m, r.o.o)
+	rv := C.ck_encrypt_init(r.o.fl, r.o.h, &m, r.o.o)
 	if err := isOk("C_SignInit", rv); err != nil {
 		return nil, err
 	}
-	rv = C.ck_sign(r.o.fl, r.o.h, &cBytes[0], C.CK_ULONG(len(cBytes)), &cSig[0], &cSigLen)
+	rv = C.ck_encrypt(r.o.fl, r.o.h, &cBytes[0], C.CK_ULONG(len(cBytes)), &cSig[0], &cSigLen)
 	if err := isOk("C_Sign", rv); err != nil {
 		return nil, err
 	}
